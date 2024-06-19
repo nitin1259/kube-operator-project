@@ -20,17 +20,21 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	cachev1alpha1 "github.com/nitin1259/kube-operator-project/api/v1alpha1"
+	appsv1 "k8s.io/api/apps/v1"
 )
 
 // MemcachedReconciler reconciles a Memcached object
 type MemcachedReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	Recorder record.EventRecorder 
 }
 
 //+kubebuilder:rbac:groups=cache.example.com,resources=memcacheds,verbs=get;list;watch;create;update;patch;delete
@@ -49,7 +53,11 @@ type MemcachedReconciler struct {
 func (r *MemcachedReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	_ = log.FromContext(ctx)
 
-	// TODO(user): your logic here
+	// Lookup the Memcached instance for this reconcile request
+  memcached := &cachev1alpha1.Memcached{}
+  if err := r.Get(ctx, req.NamespacedName, memcached); err!=nil{
+		return ctrl.Result{}, client.IgnoreAlreadyExists(err)
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -58,5 +66,7 @@ func (r *MemcachedReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 func (r *MemcachedReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cachev1alpha1.Memcached{}).
+		Owns(&appsv1.Deployment{}).
+		WithOptions(controller.Options{MaxConcurrentReconciles: 2}).
 		Complete(r)
 }
